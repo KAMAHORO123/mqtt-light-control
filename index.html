@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MQTT Light Control</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  </head>
+  <body>
+    <div class="app-container">
+      <div class="bulb-container">
+        <div class="bulb">
+          <div class="bulb-top"></div>
+          <div class="bulb-middle"></div>
+          <div class="filament left"></div>
+          <div class="filament right"></div>
+          <div class="base"></div>
+          <div class="bulb-glow"></div>
+        </div>
+        <div class="reflection"></div>
+      </div>
+
+      <h1 class="title">Light Control</h1>
+
+      <div class="connection-status">
+        <span class="connection-dot"></span>
+        <span class="connection-text">Connecting...</span>
+      </div>
+
+      <div class="controls">
+        <button class="control-btn" id="toggleBtn" onclick="toggleLight()">
+          <span class="btn-icon"></span>
+          <span class="btn-text">POWER</span>
+        </button>
+      </div>
+
+      <div class="status-container">
+        <div class="status-bar">
+          <div class="status-progress"></div>
+        </div>
+        <p id="status" class="status-text">Waiting for command...</p>
+      </div>
+    </div>
+
+    <script>
+      const broker = "wss://test.mosquitto.org:8081/mqtt"; // Public MQTT Broker
+      const topic = "/student_group/light_control";
+      let lightState = false;
+
+      const bulb = document.querySelector(".bulb");
+      const bulbGlow = document.querySelector(".bulb-glow");
+      const connectionDot = document.querySelector(".connection-dot");
+      const connectionText = document.querySelector(".connection-text");
+      const toggleBtn = document.getElementById("toggleBtn");
+      const statusProgress = document.querySelector(".status-progress");
+
+      // Connect to MQTT broker
+      const client = mqtt.connect(broker);
+
+      client.on("connect", function () {
+        console.log("Connected to MQTT broker");
+        connectionDot.classList.add("connected");
+        connectionText.textContent = "Connected";
+        document.body.classList.add("mqtt-connected");
+      });
+
+      client.on("error", function (error) {
+        console.log("Connection error:", error);
+        connectionDot.classList.add("error");
+        connectionText.textContent = "Connection Error";
+      });
+
+      // Subscribe to the same topic to receive updates
+      client.on("connect", function () {
+        client.subscribe(topic);
+      });
+
+      client.on("message", function (topic, message) {
+        const command = message.toString();
+        updateLightState(command === "ON");
+      });
+
+      function toggleLight() {
+        lightState = !lightState;
+        const command = lightState ? "ON" : "OFF";
+        sendCommand(command);
+      }
+
+      function sendCommand(command) {
+        client.publish(topic, command);
+        updateLightState(command === "ON");
+      }
+
+      function updateLightState(isOn) {
+        lightState = isOn;
+        const status = document.getElementById("status");
+
+        if (isOn) {
+          document.body.classList.add("light-on");
+          document.body.classList.remove("light-off");
+          bulb.classList.add("on");
+          toggleBtn.classList.add("on");
+          status.textContent = "Light is ON";
+          statusProgress.style.width = "100%";
+        } else {
+          document.body.classList.add("light-off");
+          document.body.classList.remove("light-on");
+          bulb.classList.remove("on");
+          toggleBtn.classList.remove("on");
+          status.textContent = "Light is OFF";
+          statusProgress.style.width = "0%";
+        }
+      }
+    </script>
+  </body>
+</html>
